@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prime Agritech — Firebase Test</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #F2F4F7; color: #1A1D23; padding: 20px; max-width: 600px; margin: 0 auto; }
+    h1 { color: #0F2942; font-size: 20px; margin-bottom: 4px; }
+    .sub { color: #8A94A6; font-size: 13px; margin-bottom: 20px; }
+    .status { padding: 10px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; margin-bottom: 16px; }
+    .status.ok { background: #E8F7EF; color: #1A7A45; }
+    .status.err { background: #FDE8E8; color: #C0392B; }
+    .status.wait { background: #FFF8E6; color: #A06B00; }
+    .card { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 12px; }
+    input, select { width: 100%; padding: 9px 12px; border-radius: 7px; border: 1px solid #DDE1E8; font-size: 14px; font-family: inherit; margin-bottom: 8px; background: #FAFBFC; }
+    button { padding: 9px 16px; border-radius: 7px; border: none; background: #0F2942; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    button.del { background: #C0392B; padding: 5px 10px; font-size: 12px; }
+    .row { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border: 1px solid #EEF0F4; border-radius: 8px; margin-bottom: 6px; background: #FAFBFC; }
+    .row-name { font-weight: 700; font-size: 14px; }
+    .row-meta { font-size: 12px; color: #888; }
+    .empty { text-align: center; color: #AAA; padding: 20px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h1>🔌 Firebase Pipeline Test</h1>
+  <div class="sub">If a vehicle you add here survives a refresh and shows in your Firebase console, the pipeline works.</div>
+
+  <div id="status" class="status wait">Connecting to Firebase…</div>
+
+  <div class="card">
+    <div style="font-weight:700; font-size:13px; margin-bottom:10px; color:#0F2942;">Add a Vehicle</div>
+    <input id="name" placeholder="Unit name (e.g. BT-01)" />
+    <input id="plate" placeholder="Plate number (e.g. ABC 1234)" />
+    <select id="type">
+      <option>Boom Truck</option>
+      <option>Van</option>
+      <option>Wing Van</option>
+      <option>Pickup</option>
+      <option>SUV</option>
+      <option>Forward</option>
+      <option>Dump Truck</option>
+    </select>
+    <button id="addBtn">+ Add Vehicle</button>
+  </div>
+
+  <div class="card">
+    <div style="font-weight:700; font-size:13px; margin-bottom:10px; color:#0F2942;">Vehicles in Database</div>
+    <div id="list"><div class="empty">Loading…</div></div>
+  </div>
+
+  <!-- Firebase browser SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import {
+      getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    // ══════════════════════════════════════════════════════════════════
+    //  PASTE YOUR firebaseConfig BLOCK BELOW (replace the whole object)
+    //  Get it from: Firebase console → Project settings → Your apps
+    // ══════════════════════════════════════════════════════════════════
+    const firebaseConfig = {
+      apiKey: "PASTE_YOURS_HERE",
+      authDomain: "PASTE_YOURS_HERE",
+      projectId: "PASTE_YOURS_HERE",
+      storageBucket: "PASTE_YOURS_HERE",
+      messagingSenderId: "PASTE_YOURS_HERE",
+      appId: "PASTE_YOURS_HERE"
+    };
+    // ══════════════════════════════════════════════════════════════════
+
+    const statusEl = document.getElementById("status");
+    const listEl = document.getElementById("list");
+
+    let db;
+    try {
+      const app = initializeApp(firebaseConfig);
+      db = getFirestore(app);
+      statusEl.className = "status ok";
+      statusEl.textContent = "✓ Connected to Firebase";
+    } catch (e) {
+      statusEl.className = "status err";
+      statusEl.textContent = "✗ Connection failed: " + e.message + " — check your config block.";
+    }
+
+    const vehiclesRef = collection(db, "vehicles");
+
+    // Live listener — updates the list automatically whenever data changes
+    onSnapshot(vehiclesRef, (snapshot) => {
+      if (snapshot.empty) {
+        listEl.innerHTML = '<div class="empty">No vehicles yet. Add one above.</div>';
+        return;
+      }
+      listEl.innerHTML = "";
+      snapshot.forEach((docSnap) => {
+        const v = docSnap.data();
+        const row = document.createElement("div");
+        row.className = "row";
+        row.innerHTML = `
+          <div>
+            <div class="row-name">${v.name || "—"}</div>
+            <div class="row-meta">${v.type || ""} · ${v.plate || ""}</div>
+          </div>
+          <button class="del" data-id="${docSnap.id}">Delete</button>
+        `;
+        listEl.appendChild(row);
+      });
+      // Wire delete buttons
+      listEl.querySelectorAll(".del").forEach((btn) => {
+        btn.onclick = async () => {
+          await deleteDoc(doc(db, "vehicles", btn.dataset.id));
+        };
+      });
+    }, (err) => {
+      statusEl.className = "status err";
+      statusEl.textContent = "✗ Read failed: " + err.message;
+    });
+
+    // Add vehicle
+    document.getElementById("addBtn").onclick = async () => {
+      const name = document.getElementById("name").value.trim();
+      const plate = document.getElementById("plate").value.trim();
+      const type = document.getElementById("type").value;
+      if (!name) { alert("Enter a unit name."); return; }
+      try {
+        await addDoc(vehiclesRef, { name, plate, type, status: "available", createdAt: serverTimestamp() });
+        document.getElementById("name").value = "";
+        document.getElementById("plate").value = "";
+      } catch (e) {
+        alert("Add failed: " + e.message);
+      }
+    };
+  </script>
+</body>
+</html>
