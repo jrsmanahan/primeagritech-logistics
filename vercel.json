@@ -1,0 +1,7 @@
+{
+  "rewrites": [
+    { "source": "/dispatcher", "destination": "/PrimeAgritech_Logistics.html" },
+    { "source": "/driver",     "destination": "/PrimeAgritech_DriverView.html" },
+    { "source": "/",           "destination": "/PrimeAgritech_Logistics.html" }
+  ]
+}
